@@ -13,21 +13,19 @@ import Data.Map (Map, fromList, toList, singleton, unionWith, findWithDefault)
 import Control.Applicative
 import Text.Printf
 
-run_length :: Eq a => [a] -> [(Int,a)]
-run_length []     = []
-run_length (x:xs) =
+run :: Eq a => (Int -> a -> b) -> [a] -> [b]
+run f []     = []
+run f (x:xs) =
   let (l,r) = span (x ==) xs
       len   = 1 + length l
-      rest  = run_length r
-  in (len,x) : rest
+      rest  = run f r
+  in f len x : rest
 
 runs :: Eq a => [a] -> [Int]
-runs []     = []
-runs (x:xs) =
-  let (l,r) = span (x ==) xs
-      len   = 1 + length l
-      rest  = runs r
-  in len : rest
+runs = run const
+
+run_length :: Eq a => [a] -> [(Int,a)]
+run_length = run (,)
 
 (//) :: (Integral a, Fractional b) => a -> a -> b
 (//) = (/) `on` fromIntegral
@@ -69,12 +67,22 @@ split p xs = y : split p rest
 
 type Dataset = [[String]]
 
-data Tree where
-  Node :: Int    -> (String,Map String Tree) -> Tree
-  Leaf :: String -> Tree
-instance Show Tree where
+data Tre a where
+  Node :: Int -> (a, Map a (Tre a)) -> Tre a
+  Leaf :: a   -> Tre a
+instance Show a => Show (Tre a) where
   show (Leaf a)          = show a
   show (Node i (def, m)) = "(" ++ show i ++ "(" ++ show def ++ "), " ++ showMap m ++ ")"
+
+predictSingle :: Eq a => Tre a -> [a] -> a
+predictSingle (Leaf a)          _ = a
+predictSingle (Node n (def, m)) x =
+  let v = ((lookup (x !! n)) . toList) m
+  in case v of
+    Just c  -> predictSingle c x
+    Nothing -> def
+
+type Tree = Tre String
 
 argmax :: Ord b => (a -> a -> Ordering) -> (a -> b) -> [a] -> a
 argmax g f a = maximumBy (\a b -> f a `compare` f b <> b `g` a) a
@@ -105,14 +113,6 @@ id3' d  dparent xs names depth =
 
 id3 :: Dataset -> [String] -> Int -> Tree
 id3 d = id3' d d [0..((length $ head d)-2)]
-
-predictSingle :: Tree -> [String] -> String
-predictSingle (Leaf a)          _ = a
-predictSingle (Node n (def, m)) x =
-  let v = ((lookup (x !! n)) . toList) m
-  in case v of
-    Just c  -> predictSingle c x
-    Nothing -> def
 
 confusionMatrix :: [String] -> [String] -> Map (String,String) Int
 confusionMatrix []     []     = mempty
