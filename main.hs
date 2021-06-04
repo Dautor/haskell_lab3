@@ -46,25 +46,6 @@ ig d x =
       op  dxv = ((//) `on` length) dxv d * entropy dxv
   in -(sum $ (op . dxv) <$> nub ((!! x) <$> d))
 
-
-ig' :: Ord a => [[a]] -> Int -> Float
-ig' d x =
-  entropy d - s
-  where dxv v  = filter ((v ==) . (!! x)) d
-        op dxv = ((//) `on` length) dxv d * entropy dxv
-        s      = sum $ op . dxv <$> (nub $ (!! x) <$> d)
-
-split' :: (a -> Bool) -> [a] -> ([a],[a])
-split' _ [] = ([],[])
-split' p (x:xs)
-  | p x       = (xs,[])
-  | otherwise = (x:) <$> split' p xs
-
-split :: (a -> Bool) -> [a] -> [[a]]
-split _ [] = []
-split p xs = y : split p rest
-  where (rest,y) = split' p xs
-
 type Dataset = [[String]]
 
 data Tre a where
@@ -155,6 +136,17 @@ showMatrix = showMatrix' 0
 
 getlines :: Handle -> IO [String]
 getlines = (fmap lines) . hGetContents
+
+split' :: (a -> Bool) -> [a] -> ([a],[a])
+split' _ [] = ([],[])
+split' p (x:xs)
+  | p x       = (xs,[])
+  | otherwise = (x:) <$> split' p xs
+
+split :: (a -> Bool) -> [a] -> [[a]]
+split _ [] = []
+split p xs = y : split p rest
+  where (rest,y) = split' p xs
 
 parseCSV :: String -> [String]
 parseCSV = split (== ',')
